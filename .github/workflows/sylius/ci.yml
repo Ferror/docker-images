@@ -1,0 +1,269 @@
+name: Build Docker Image
+
+on:
+    push:
+        branches-ignore:
+            - master
+        paths-ignore:
+            - '*.md'
+
+jobs:
+    ci-traditional:
+        strategy:
+            fail-fast: false
+            matrix:
+                platform: [linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v8]
+
+        runs-on: ubuntu-latest
+        name: CI - Build Traditional Image
+        steps:
+            -
+                name: Set Up QEMU
+                uses: docker/setup-qemu-action@v2
+            -
+                name: Set Up Docker Buildx
+                uses: docker/setup-buildx-action@v2
+            -
+                name: Build Image
+                uses: docker/build-push-action@v3
+                with:
+                    push: false
+                    context: "{{defaultContext}}:traditional"
+                    tags: sylius-image:cache
+                    platforms: ${{ matrix.platform }}
+                    cache-from: type=gha
+                    cache-to: type=gha
+                    load: true
+            -
+                name: Shutdown Default MySQL
+                run: sudo service mysql stop
+            -
+                name: Setup MySQL
+                run: |
+                    docker network create \
+                        --driver bridge \
+                        sylius_network
+                    
+                    docker container run \
+                        --platform linux/amd64 \
+                        -e MYSQL_ALLOW_EMPTY_PASSWORD=true \
+                        -p 3306:3306/tcp \
+                        --name mysql \
+                        --network sylius_network \
+                        -d mysql:5.7
+            -
+                name: Checkout Code
+                uses: actions/checkout@v2
+            -
+                name: Setup Sylius Store
+                run: |
+                    docker image build \
+                        --platform ${{ matrix.platform }} \
+                        --network sylius_network \
+                        --tag sylius-image-prod \
+                        .github/workflows/traditional/
+
+                    docker container run \
+                        --platform ${{ matrix.platform }} \
+                        --network sylius_network \
+                        -p 80:80/tcp \
+                        -d sylius-image-prod
+            -
+                name: Health Check Store
+                run: |
+                    sleep 5
+                    curl -L --fail http://localhost:80 || exit 1
+
+    ci-headless:
+        strategy:
+            fail-fast: false
+            matrix:
+                platform: [linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v8]
+
+        runs-on: ubuntu-latest
+        name: CI - Build Headless Image
+        steps:
+            -
+                name: Set Up QEMU
+                uses: docker/setup-qemu-action@v2
+            -
+                name: Set Up Docker Buildx
+                uses: docker/setup-buildx-action@v2
+            -
+                name: Build Image
+                uses: docker/build-push-action@v3
+                with:
+                    push: false
+                    context: "{{defaultContext}}:headless"
+                    tags: sylius-image:cache
+                    platforms: ${{ matrix.platform }}
+                    cache-from: type=gha
+                    cache-to: type=gha
+                    load: true
+            -
+                name: Shutdown Default MySQL
+                run: sudo service mysql stop
+            -
+                name: Setup MySQL
+                run: |
+                    docker network create \
+                        --driver bridge \
+                        sylius_network
+                    
+                    docker container run \
+                        --platform linux/amd64 \
+                        -e MYSQL_ALLOW_EMPTY_PASSWORD=true \
+                        -p 3306:3306/tcp \
+                        --name mysql \
+                        --network sylius_network \
+                        -d mysql:5.7
+            -
+                name: Checkout Code
+                uses: actions/checkout@v2
+            -
+                name: Setup Sylius Store
+                run: |
+                    docker image build \
+                        --platform ${{ matrix.platform }} \
+                        --network sylius_network \
+                        --tag sylius-image-prod \
+                        .github/workflows/headless/
+
+                    docker container run \
+                        --platform ${{ matrix.platform }} \
+                        --network sylius_network \
+                        -p 80:80/tcp \
+                        -d sylius-image-prod
+            -
+                name: Health Check Store
+                run: |
+                    sleep 5
+                    curl -L --fail http://localhost:80 || exit 1
+
+    ci-experimental:
+        strategy:
+            fail-fast: false
+            matrix:
+                platform: [linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v8]
+
+        runs-on: ubuntu-latest
+        name: CI - Build Experimental Image
+        steps:
+            -
+                name: Set Up QEMU
+                uses: docker/setup-qemu-action@v2
+            -
+                name: Set Up Docker Buildx
+                uses: docker/setup-buildx-action@v2
+            -
+                name: Build Image
+                uses: docker/build-push-action@v3
+                with:
+                    push: false
+                    context: "{{defaultContext}}:experimental"
+                    tags: sylius-image:cache
+                    platforms: ${{ matrix.platform }}
+                    cache-from: type=gha
+                    cache-to: type=gha
+                    load: true
+            -
+                name: Shutdown Default MySQL
+                run: sudo service mysql stop
+            -
+                name: Setup MySQL
+                run: |
+                    docker network create \
+                        --driver bridge \
+                        sylius_network
+
+                    docker container run \
+                        --platform linux/amd64 \
+                        -e MYSQL_ALLOW_EMPTY_PASSWORD=true \
+                        -p 3306:3306/tcp \
+                        --name mysql \
+                        --network sylius_network \
+                        -d mysql:5.7
+            -
+                name: Checkout Code
+                uses: actions/checkout@v2
+            -
+                name: Setup Sylius Store
+                run: |
+                    docker image build \
+                        --platform ${{ matrix.platform }} \
+                        --network sylius_network \
+                        --tag sylius-image-prod \
+                        .github/workflows/experimental/
+
+                    docker container run \
+                        --platform ${{ matrix.platform }} \
+                        --network sylius_network \
+                        -p 80:80/tcp \
+                        -d sylius-image-prod
+            -
+                name: Health Check Store
+                run: |
+                    sleep 5
+                    curl -L --fail http://localhost:80 || exit 1
+
+    ci-roadrunner:
+        strategy:
+            fail-fast: false
+            matrix:
+                platform: [linux/amd64,linux/arm64]
+
+        runs-on: ubuntu-latest
+        name: CI - Build Roadrunner Image
+        steps:
+            -
+                name: Set Up QEMU
+                uses: docker/setup-qemu-action@v1
+            -
+                name: Set Up Docker Buildx
+                uses: docker/setup-buildx-action@v1
+            -
+                name: Build Image
+                uses: docker/build-push-action@v2
+                with:
+                    push: false
+                    context: "{{defaultContext}}:roadrunner"
+                    tags: sylius-image:cache
+                    platforms: ${{ matrix.platform }}
+                    load: true
+            -
+                name: Shutdown Default MySQL
+                run: sudo service mysql stop
+            -
+                name: Setup MySQL
+                run: |
+                    docker network create \
+                        --driver bridge \
+                        sylius_network
+
+                    docker container run \
+                        --platform linux/amd64 \
+                        -e MYSQL_ALLOW_EMPTY_PASSWORD=1 \
+                        -p 3306:3306/tcp \
+                        --name mysql \
+                        --network sylius_network \
+                        -d mysql:5.7
+            -
+                name: Checkout Code
+                uses: actions/checkout@v2
+            -
+                name: Setup Sylius Store
+                run: |
+                    docker image build \
+                        --tag sylius-image-prod \
+                        .github/workflows/roadrunner/
+
+                    docker container run \
+                        --platform ${{ matrix.platform }} \
+                        --network sylius_network \
+                        -p 80:80/tcp \
+                        -d sylius-image-prod
+            -
+                name: Health Check Store
+                run: |
+                    sleep 30
+                    curl -L --fail http://localhost:80 || exit 1
