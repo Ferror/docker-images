@@ -1,6 +1,7 @@
 name: Build & Publish Symfony CLI Docker Image
 
 on:
+    workflow_dispatch: ~
     push:
         branches:
             - master
